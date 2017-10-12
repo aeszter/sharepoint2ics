@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">
+    <s:Body>
+        <GetListItems xmlns="http://schemas.microsoft.com/sharepoint/soap/">
+            <!-- <listName>Calendar</listName> -->
+<listName>{6127970b-6fc8-47a7-9121-966490b7ee5f}</listName>
+<!-- <viewName></viewName> -->
+<rowLimit>10000</rowLimit>
+                            <query><Query>
+<Where>
+      <Lt>
+         <FieldRef Name="ID" />
+         <Value Type="Counter">9999</Value>
+      </Lt>
+   </Where>
+</Query></query> 
+                            <!-- <ViewFields><fieldRef Name="Title" /></ViewFields> -->
+                            <QueryOptions><IncludeMandatoryColumns>FALSE</IncludeMandatoryColumns><DateInUtc>TRUE</DateInUtc></QueryOptions>
+                            <!-- <webId></webId> -->
+        </GetListItems>
+    </s:Body>
+</s:Envelope>
