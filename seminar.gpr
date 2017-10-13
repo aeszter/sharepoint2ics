@@ -2,25 +2,21 @@ with "aws";
 
 project Seminar is
 
-   type Build_Kind1 is
-      ("default", "relocatable");
-   type Build_Kind is
-      ("static", "relocatable", "static-pic");
    for Object_Dir use "obj";
    for Exec_Dir use ".";
    for Main use ("seminar-main.adb");
-   XMLADA_BUILD : Build_Kind := external ("XMLADA_BUILD");
-   AWS_BUILD : Build_Kind1 := external ("AWS_BUILD");
+   type Build_Kind is
+      ("static", "relocatable", "static-pic");
+   Xmlada_Build : Build_Kind := external ("XMLADA_BUILD");
+   type Build_Kind1 is
+      ("default", "relocatable");
+   Aws_Build : Build_Kind1 := external ("AWS_BUILD");
 
-   package Builder is
-      for Executable ("seminar-main.adb") use "seminar";
-   end Builder;
-
-   case XMLADA_BUILD is
+   case Xmlada_Build is
 
       when "static" =>
 
-         case AWS_BUILD is
+         case Aws_Build is
 
             when "default" =>
                for Source_Dirs use ("src/**");
@@ -36,16 +32,20 @@ project Seminar is
          for Source_Dirs use ("src");
    end case;
 
+   package Builder is
+      for Executable ("seminar-main.adb") use "seminar";
+   end Builder;
+
    package Compiler is
 
-      case XMLADA_BUILD is
+      case Xmlada_Build is
 
          when "static" =>
 
-            case AWS_BUILD is
+            case Aws_Build is
 
                when "default" =>
-                  for Switches ("ada") use ("-gnatyyaAbBCehiklnoOpsStux3", "-gnatyy2", "-gnatyy1");
+                  for Switches ("ada") use ("-gnatwa", "-gnatyylbyaAbBCehiklnoOpsStux3", "-gnatyyyy2", "-gnatyyyy1");
 
                when "relocatable" =>
                   for Switches ("ada") use ("-gnatyyaAbBCehiklnoOpsStux3", "-gnatyy2", "-gnatyy1");
@@ -53,7 +53,7 @@ project Seminar is
 
          when "relocatable" =>
 
-            case AWS_BUILD is
+            case Aws_Build is
 
                when "default" =>
                   for Switches ("ada") use ("-gnatyyaAbBCehiklnoOpsStux3", "-gnatyy2", "-gnatyy1");
@@ -64,7 +64,7 @@ project Seminar is
 
          when "static-pic" =>
 
-            case AWS_BUILD is
+            case Aws_Build is
 
                when "default" =>
                   for Switches ("ada") use ("-gnatyyaAbBCehiklnoOpsStux3", "-gnatyy2", "-gnatyy1");
