@@ -7,14 +7,20 @@ with DOM.Core.Attrs; use DOM.Core.Attrs;
 with DOM.Readers;
 with Sax.Readers; use Sax.Readers;
 with Input_Sources.File; use Input_Sources.File;
+with Ada.Real_Time;
 with Ada.Calendar;
 with GNAT.Calendar;
 with GNAT.Calendar.Time_IO;
 with Ada.Strings.Fixed;
 with Ada.Characters.Latin_1;
 
+with Utils; use Utils;
+
 
 procedure Convert (Input, Output : String) is
+   use Ada.Real_Time;
+   use Ada.Calendar;
+
    function Image (Date    : Ada.Calendar.Time;
                    Picture : GNAT.Calendar.Time_IO.Picture_String)
                    return String
@@ -128,25 +134,34 @@ begin
    Write ("PRODID:-//aeszter@mpibpc.mpg.de//sharepoint2ics//EN");
    for I in 0 .. Length (All_Nodes) - 1 loop
       declare
-         Entry_Node           : constant Node := Item (All_Nodes, I);
-         Fields               : constant Named_Node_Map := Attributes (Entry_Node);
+         Entry_Node               : constant Node := Item (All_Nodes, I);
+         Fields                   : constant Named_Node_Map := Attributes (Entry_Node);
          Created, Last_Modified,
-         Event_Date, End_Date : Ada.Calendar.Time;
-         Is_All_Day           : Boolean;
-         All_Day_Event        : constant String := Get_Value (Fields, "ows_fAllDayEvent");
+         Event_Date, End_Date     : Ada.Calendar.Time;
+         Event_Duration           : Duration;
+         Is_All_Day, Is_Recurrent : Boolean;
+         All_Day_Event            : constant String := Get_Value (Fields, "ows_fAllDayEvent");
+         Recurrent_Event          : constant String := Get_Value (Fields, "ows_fRecurrence");
+         Start_String             : constant String := Get_Value (Fields, "ows_EventDate");
+         End_String               : constant String := Get_Value (Fields, "ows_EndDate");
+         Created_String           : constant String := Get_Value (Fields, "ows_Created");
+         Modified_String          : constant String := Get_Value (Fields, "ows_Modified");
+
       begin
          if Name (Entry_Node) /= "#text" then
             if Name (Entry_Node) /= "z:row" then
                raise Unexpected_Node with Integer'Image (I);
             end if;
             Created := GNAT.Calendar.Time_IO.Value
-              (Get_Value (Fields, "ows_Created"));
+              (Shift (Created_String));
             Last_Modified := GNAT.Calendar.Time_IO.Value
-              (Get_Value (Fields, "ows_Modified"));
+              (Shift (Modified_String));
             Event_Date := GNAT.Calendar.Time_IO.Value
-              (Get_Value (Fields, "ows_EventDate"));
+              (Shift (Start_String));
             End_Date := GNAT.Calendar.Time_IO.Value
-              (Get_Value (Fields, "ows_EndDate"));
+              (Shift (End_String));
+            Event_Duration := To_Duration (Seconds (Integer'Value (
+                                        Get_Value (Fields, "ows_Duration"))));
             if All_Day_Event = "0" then
                Is_All_Day := False;
             elsif All_Day_Event = "1" then
@@ -155,6 +170,15 @@ begin
                Warn ("Unknown All_Day status """ & All_Day_Event
                      & """ found in event " & Integer'Image (I));
                Is_All_Day := False;
+            end if;
+            if Recurrent_Event = "0" then
+               Is_Recurrent := False;
+            elsif Recurrent_Event = "1" then
+               Is_Recurrent := True;
+            else
+               Warn ("Unknown Recurrence status """ & Recurrent_Event
+                     & """ found in event " & Integer'Image (I));
+               Is_Recurrent := False;
             end if;
             Write ("BEGIN:VEVENT");
             Write ("SUMMARY:"
@@ -170,10 +194,12 @@ begin
                    & Image (Last_Modified, "%Y%m%dT%H%M%SZ"));
             if Is_All_Day then
                Write ("DTSTART;VALUE=DATE:" & Image (Event_Date, "%Y%m%d"));
-               Write ("DTEND;VALUE=DATE:" & Image (End_Date, "%Y%m%d"));
+               Write ("DTEND;VALUE=DATE:"
+                      & Image (Event_Date + Event_Duration, "%Y%m%d"));
             else
                Write ("DTSTART:" & Image (Event_Date, "%Y%m%dT%H%M%SZ"));
-               Write ("DTEND:" & Image (End_Date, "%Y%m%dT%H%M%SZ"));
+               Write ("DTEND:" & Image (Event_Date + Event_Duration,
+                      "%Y%m%dT%H%M%SZ"));
             end if;
             Write ("SEQUENCE:0");
             Write ("END:VEVENT");
