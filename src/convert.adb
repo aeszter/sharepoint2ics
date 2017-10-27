@@ -30,6 +30,7 @@ procedure Convert (Input, Output : String) is
    function Extract_UID (Source : String) return String;
    procedure Warn (Text : String);
    procedure Write (Text : String);
+   function Get_Recurrence (Source : String; End_Date : String) return String;
 
    XML_File : File_Input;
      ICS_File : File_Type;
@@ -78,6 +79,43 @@ procedure Convert (Input, Output : String) is
          return Source;
       end if;
    end Extract_UID;
+
+   function Get_Recurrence (Source : String; End_Date : String) return String is
+      use Ada.Strings.Fixed;
+
+      S : constant String (1 .. Source'Length) := Source;
+      Result : String (1 .. 1024);
+      I, Last, Len : Positive;
+      Period : Positive;
+   begin
+      if S (1 .. 5) = "Every" then
+         Result (1 .. 5) := "FREQ:";
+         I := Index (Source => S, From => 7, Pattern => " ");
+         Period := Integer'Value (S (7 .. I - 1));
+         if S (I + 1 .. I + 7) = "week(s)" then
+            Result (6 .. 21) := "WEEKLY;INTERVAL=";
+            Last := 21;
+         else
+            Warn ("Unsupported FREQ " & S (I + 1 .. I + 7));
+         end if;
+         Len := Integer'Image (Period)'Length - 1; -- leading space
+         Result (Last + 1 .. Last + Len) := Integer'Image (Period) (2 .. Len + 1);
+         Last := Last + Len;
+         Result (Last + 1 .. Last + 8) := ";WKST=MO";
+         Last := Last + 8;
+         Result (Last + 1 .. Last + 7) := ";BYDAY=";
+         Last := Last + 7;
+         Result (Last + 1 .. Last + 2) := S (I + 13 .. I + 14);
+         Last := Last + 2;
+         Result (Last + 1 .. Last + 7) := ";UNTIL=";
+         Last := Last + 7;
+         Result (Last + 1 .. Last + 16) := End_Date;
+         Last := Last + 16;
+      else
+         return "";
+      end if;
+      return Result (1 .. Last);
+   end Get_Recurrence;
 
    function Get_Value (Fields : Named_Node_Map; Name : String) return String is
       The_Item : constant Node := Get_Named_Item (Fields, Name);
@@ -146,6 +184,7 @@ begin
          End_String               : constant String := Get_Value (Fields, "ows_EndDate");
          Created_String           : constant String := Get_Value (Fields, "ows_Created");
          Modified_String          : constant String := Get_Value (Fields, "ows_Modified");
+         Recurrence_Data          : constant String := Unescape (Get_Value (Fields, "ows_RecurrenceData"));
 
       begin
          if Name (Entry_Node) /= "#text" then
@@ -180,6 +219,9 @@ begin
                      & """ found in event " & Integer'Image (I));
                Is_Recurrent := False;
             end if;
+            if Recurrence_Data /= "" then
+               Warn (Recurrence_Data);
+            end if;
             Write ("BEGIN:VEVENT");
             Write ("SUMMARY:"
                     & Get_Value (Fields, "ows_Title"));
@@ -200,6 +242,10 @@ begin
                Write ("DTSTART:" & Image (Event_Date, "%Y%m%dT%H%M%SZ"));
                Write ("DTEND:" & Image (Event_Date + Event_Duration,
                       "%Y%m%dT%H%M%SZ"));
+            end if;
+            if Is_Recurrent then
+               Write ("RRULE:" & Get_Recurrence (Recurrence_Data,
+                      Image (End_Date, "%Y%m%dT%H%M%SZ")));
             end if;
             Write ("SEQUENCE:0");
             Write ("END:VEVENT");
