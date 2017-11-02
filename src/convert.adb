@@ -7,6 +7,7 @@ with DOM.Core.Attrs; use DOM.Core.Attrs;
 with DOM.Readers;
 with Sax.Readers; use Sax.Readers;
 with Input_Sources.File; use Input_Sources.File;
+with Input_Sources.Strings;
 with Ada.Real_Time;
 with Ada.Calendar;
 with GNAT.Calendar;
@@ -15,6 +16,9 @@ with Ada.Strings.Fixed;
 with Ada.Characters.Latin_1;
 
 with Utils; use Utils;
+with Unicode;
+with Unicode.CES;
+with Unicode.CES.Basic_8bit;
 
 
 procedure Convert (Input, Output : String) is
@@ -82,12 +86,14 @@ procedure Convert (Input, Output : String) is
 
    function Get_Recurrence (Source : String; End_Date : String) return String is
       use Ada.Strings.Fixed;
+      use Input_Sources.Strings;
 
       S          : constant String (1 .. Source'Length) := Source;
       Result     : String (1 .. 1024);
       I, Len     : Positive;
       Last       : Natural;
       Period     : Positive;
+      XML_String : String_Input;
    begin
       if S (1 .. 5) = "Every" then
          Result (1 .. 5) := "FREQ:";
@@ -100,7 +106,8 @@ procedure Convert (Input, Output : String) is
             Warn ("Unsupported FREQ " & S (I + 1 .. I + 7));
          end if;
          Len := Integer'Image (Period)'Length - 1; -- leading space
-         Result (Last + 1 .. Last + Len) := Integer'Image (Period) (2 .. Len + 1);
+         Result (Last + 1 .. Last + Len) :=
+           Integer'Image (Period) (2 .. Len + 1);
          Last := Last + Len;
          Result (Last + 1 .. Last + 8) := ";WKST=MO";
          Last := Last + 8;
@@ -113,7 +120,56 @@ procedure Convert (Input, Output : String) is
          Result (Last + 1 .. Last + 16) := End_Date;
          Last := Last + 16;
       else
-         return "";
+         Reader.Set_Feature (Sax.Readers.Validation_Feature, False);
+         Reader.Set_Feature (Sax.Readers.Namespace_Feature, False);
+         Open (Str      => Source,
+               Encoding => Unicode.CES.Basic_8bit.Basic_8bit_Encoding,
+               Input    => XML_String);
+         Reader.Parse (XML_String);
+         Close (XML_String);
+         XML_Doc := Reader.Get_Tree;
+         declare
+            Base_Nodes, Rules, Rule_Items       : Node_List;
+            Recurrence_Node, The_Rule, The_Item : Node;
+         begin
+            Base_Nodes := Get_Elements_By_Tag_Name (XML_Doc, "recurrence");
+            if (Length (Base_Nodes) > 1) then
+               Warn ("Found more than 1 recurrence node in item, "
+                  & "using only the first one");
+               Warn (Source);
+            end if;
+            Recurrence_Node := Item (Base_Nodes, 0);
+            Rules := Child_Nodes (Recurrence_Node);
+            Last := 0;
+            for I in 0 .. Length (Rules) - 1 loop
+               The_Rule := Item (Rules, I);
+               if Name (The_Rule) = "rule" then
+                  Rule_Items := Child_Nodes (The_Rule);
+                  for J in 0 .. Length (Rule_Items) - 1 loop
+                     The_Item := Item (Rule_Items, J);
+                     if Name (The_Item) = "firstDayOfWeek" then
+                        Result (Last + 1 .. Last + 6) := ";WKST=";
+                        Last := Last + 6;
+                        Result (Last + 1 .. Last + 2) := Value (First_Child (The_Item));
+                        Last := Last + 2;
+                     elsif Name (The_Item) = "repeat" then
+                        null; -- FIXME
+                     elsif Name (The_Item) = "repeatInstances" then
+                        null; -- FIXME
+                     elsif Name (The_Item) = "windowEnd" then
+                        null; -- FIXME
+                     elsif Name (The_Item) = "repeatForever" then
+                        null; -- FIXME
+                     elsif Name (The_Item) = "#Text" then
+                        null; -- ignore
+                     else
+                        Warn ("Unknown tag " & Name (The_Item)
+                              & "found in recurrence rule");
+                     end if;
+                  end loop;
+               end if;
+            end loop;
+         end;
       end if;
       return Result (1 .. Last);
    end Get_Recurrence;
