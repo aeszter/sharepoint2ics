@@ -32,11 +32,11 @@ procedure Convert (Input, Output : String) is
    procedure Write (Text : String);
    function Get_Recurrence (Source : String; End_Date : String) return String;
 
-   XML_File : File_Input;
-     ICS_File : File_Type;
-      Reader : DOM.Readers.Tree_Reader;
-      XML_Doc : Document;
-      All_Nodes, List_Nodes : Node_List;
+   XML_File              : File_Input;
+   ICS_File              : File_Type;
+   Reader                : DOM.Readers.Tree_Reader;
+   XML_Doc               : Document;
+   All_Nodes, List_Nodes : Node_List;
    List_Node             : Node;
 
    Unexpected_Node       : exception;
@@ -83,10 +83,11 @@ procedure Convert (Input, Output : String) is
    function Get_Recurrence (Source : String; End_Date : String) return String is
       use Ada.Strings.Fixed;
 
-      S : constant String (1 .. Source'Length) := Source;
-      Result : String (1 .. 1024);
-      I, Last, Len : Positive;
-      Period : Positive;
+      S          : constant String (1 .. Source'Length) := Source;
+      Result     : String (1 .. 1024);
+      I, Len     : Positive;
+      Last       : Natural;
+      Period     : Positive;
    begin
       if S (1 .. 5) = "Every" then
          Result (1 .. 5) := "FREQ:";
@@ -159,7 +160,7 @@ begin
 --         Name => Output);
 
    if Length (List_Nodes) > 1 then
-      Ada.Text_IO.Put_Line (Standard_Error, "found more than one data node,"
+      Warn ("found more than one data node,"
                             & " using only the first one");
    end if;
    List_Node := Item (List_Nodes, 0);
