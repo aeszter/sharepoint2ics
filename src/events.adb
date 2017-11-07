@@ -134,7 +134,7 @@ package body Events is
                The_Event.UID := To_Unbounded_String (
                              Extract_UID (Get_Value (Fields, "ows_UniqueId")));
                The_Event.Master_ID := To_Unbounded_String (
-                                           Get_Value (Fields, "ows_MasterID"));
+                                 Get_Value (Fields, "ows_MasterSeriesItemID"));
                if The_Event.Is_Recurrent then
                   The_Event.Recurrence_Data := To_Unbounded_String (
                           Unescape (Get_Value (Fields, "ows_RecurrenceData")));
