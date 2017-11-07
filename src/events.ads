@@ -7,15 +7,22 @@ with Ada.Strings.Unbounded;
 with DOM.Core;
 
 package Events is
+   type Event_Type is (None, Normal, Reserved, Deleted, Excepted);
+
    type Event is record
       Created, Last_Modified,
       Event_Date, End_Date     : Ada.Calendar.Time;
       Event_Duration           : Duration;
       Is_All_Day, Is_Recurrent : Boolean;
+      The_Type                 : Event_Type;
       Summary, Description     : Ada.Strings.Unbounded.Unbounded_String;
       Location, Category       : Ada.Strings.Unbounded.Unbounded_String;
       UID, Recurrence_Data     : Ada.Strings.Unbounded.Unbounded_String;
+      Master_ID                : Ada.Strings.Unbounded.Unbounded_String;
+      Recurrence_ID            : Ada.Calendar.Time;
    end record;
+
+   function To_Event_Type (S : String) return Event_Type;
 
    Unexpected_Node : exception;
 

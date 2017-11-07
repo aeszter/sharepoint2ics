@@ -84,6 +84,8 @@ package body Events is
             End_String      : constant String := Get_Value (Fields, "ows_EndDate");
             Created_String  : constant String := Get_Value (Fields, "ows_Created");
             Modified_String : constant String := Get_Value (Fields, "ows_Modified");
+            The_Type        : constant String := Get_Value (Fields, "ows_EventType");
+            Recurrence_ID   : constant String := Get_Value (Fields, "ows_RecurrenceID");
 
          begin
             if Name (Entry_Node) /= "#text" then
@@ -117,6 +119,7 @@ package body Events is
                         & """ found in event " & Integer'Image (I));
                   The_Event.Is_Recurrent := False;
                end if;
+               The_Event.The_Type := To_Event_Type (The_Type);
                if The_Event.Recurrence_Data /= "" then
                   Warn (To_String (The_Event.Recurrence_Data));
                end if;
@@ -130,6 +133,8 @@ package body Events is
                                            Get_Value (Fields, "ows_Category"));
                The_Event.UID := To_Unbounded_String (
                              Extract_UID (Get_Value (Fields, "ows_UniqueId")));
+               The_Event.Master_ID := To_Unbounded_String (
+                                           Get_Value (Fields, "ows_MasterID"));
                if The_Event.Is_Recurrent then
                   The_Event.Recurrence_Data := To_Unbounded_String (
                           Unescape (Get_Value (Fields, "ows_RecurrenceData")));
@@ -139,6 +144,22 @@ package body Events is
          end;
       end loop;
    end Read;
+
+   function To_Event_Type (S : String) return Event_Type is
+   begin
+      if S = "0" then
+         return None;
+      elsif S = "1" then
+         return Normal;
+      elsif S = "3" then
+         return Deleted;
+      elsif S = "4" then
+         return Excepted;
+      else
+         Warn ("Unknown Event_Type " & S);
+         return None;
+      end if;
+   end To_Event_Type;
 
    function To_String (Prefix : String;
                        T       : Ada.Calendar.Time;
@@ -158,6 +179,7 @@ package body Events is
       procedure Write (Text : String);
       procedure Write (Text : Unbounded_String);
       procedure Write_Recurrence (The_Event : Event);
+      procedure Write_Exceptions (The_Event : Event);
 
       procedure Write (Text : String) is
       begin
@@ -170,10 +192,54 @@ package body Events is
          Write (To_String (Text));
       end Write;
 
+      procedure Write_Exceptions (The_Event : Event) is
+         procedure Count_Exceptions (Position : Lists.Cursor);
+         procedure Do_Deletion (Position : Lists.Cursor);
+
+         Sequence_Number : Natural := 0;
+
+         procedure Count_Exceptions (Position : Lists.Cursor) is
+            Excepted_Event : constant Event := Lists.Element (Position);
+         begin
+            if Excepted_Event.The_Type = Excepted and then
+              Excepted_Event.Master_ID = The_Event.Master_ID
+            then
+               Sequence_Number := Sequence_Number + 1;
+               --  fixme : terminate when the_event is reached
+            end if;
+         end Count_Exceptions;
+
+         procedure Do_Deletion (Position : Lists.Cursor) is
+            Deleted_Event : constant Event := Lists.Element (Position);
+         begin
+            if Deleted_Event.The_Type = Deleted
+              and then Deleted_Event.Master_ID = The_Event.Master_ID
+            then
+               Write (To_String ("EXDATE",
+                      Deleted_Event.Recurrence_ID,
+                      The_Event.Is_All_Day));
+            end if;
+         end Do_Deletion;
+
+      begin
+         List.Iterate (Do_Deletion'Access);
+         if (The_Event.The_Type = Excepted) then
+            Write (To_String ("RECURRENCE-ID",
+                              The_Event.Recurrence_ID,
+                              The_Event.Is_All_Day));
+            List.Iterate (Count_Exceptions'Access);
+
+            Write ("SEQUENCE:" & Integer'Image (Sequence_Number));
+         end if;
+      end Write_Exceptions;
+
       procedure Write_One (Position : Lists.Cursor) is
          use GNAT.Calendar.Time_IO;
          Item : constant Event := Lists.Element (Position);
       begin
+         if Item.The_Type = Deleted then
+            return;
+         end if;
          Write ("BEGIN:VEVENT");
          Write ("SUMMARY:" & Item.Summary);
          Write (To_String ("DTSTAMP", Item.Created, False));
@@ -187,7 +253,7 @@ package body Events is
          Write (To_String ("DTEND", Item.Event_Date + Item.Event_Duration,
                        Item.Is_All_Day));
          Write_Recurrence (Item);
-         Write ("SEQUENCE:0");
+         Write_Exceptions (Item);
          Write ("END:VEVENT");
       end Write_One;
 
