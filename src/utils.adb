@@ -1,8 +1,29 @@
+with Ada.Text_IO;
+with Ada.Characters;
+with Ada.Characters.Latin_1;
+
 package body Utils is
 
-   -----------
-   -- Shift --
-   -----------
+   function Clean_Text (Source : String) return String is
+      use Ada.Characters.Latin_1;
+      Result : String (1 .. 2 * Source'Length);
+      K : Natural := 0;
+   begin
+      for I in Source'Range loop
+         if Source (I) = LF then
+            K := K + 1;
+            Result (K) := '\';
+            K := K + 1;
+            Result (K) := 'n';
+         elsif Source (I) = CR then
+            null; -- skip
+         else
+            K := K + 1;
+            Result (K) := Source (I);
+         end if;
+      end loop;
+      return Result (1 .. K);
+   end Clean_Text;
 
    function Shift (S : String) return String is
       Result : constant String (1 .. S'Length) := S;
@@ -41,5 +62,11 @@ package body Utils is
       return Result (1 .. R - 1);
    end Unescape;
 
+   procedure Warn (Text : String) is
+      use Ada.Text_IO;
+   begin
+      Put_Line (File => Standard_Error,
+                Item => "Warning: " & Text);
+   end Warn;
 
 end Utils;

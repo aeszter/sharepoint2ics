@@ -45,27 +45,6 @@ procedure Convert (Input, Output : String) is
 
    Unexpected_Node       : exception;
 
-   function Clean_Text (Source : String) return String is
-      use Ada.Characters.Latin_1;
-      Result : String (1 .. 2 * Source'Length);
-      K : Natural := 0;
-   begin
-      for I in Source'Range loop
-         if Source (I) = LF then
-            K := K + 1;
-            Result (K) := '\';
-            K := K + 1;
-            Result (K) := 'n';
-         elsif Source (I) = CR then
-            null; -- skip
-         else
-            K := K + 1;
-            Result (K) := Source (I);
-         end if;
-      end loop;
-      return Result (1 .. K);
-   end Clean_Text;
-
    function Extract_UID (Source : String) return String is
       use Ada.Strings;
       use Ada.Strings.Fixed;
@@ -184,11 +163,6 @@ procedure Convert (Input, Output : String) is
       end if;
    end Get_Value;
 
-   procedure Warn (Text : String) is
-   begin
-      Ada.Text_IO.Put_Line (File => Standard_Error,
-                            Item => "Warning: " & Text);
-   end Warn;
 
    procedure Write (Text : String) is
    begin
