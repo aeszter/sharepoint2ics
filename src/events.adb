@@ -23,6 +23,9 @@ with Sax.Readers;
 
 package body Events is
    function Extract_UID (Source : String) return String;
+   function To_String (Prefix : String;
+                       T       : Ada.Calendar.Time;
+                       All_Day : Boolean) return String;
 
    function Extract_UID (Source : String) return String is
       use Ada.Strings;
@@ -140,6 +143,19 @@ package body Events is
       end loop;
    end Read;
 
+   function To_String (Prefix : String;
+                       T       : Ada.Calendar.Time;
+                       All_Day : Boolean) return String is
+   begin
+      if All_Day then
+         return Prefix & ";VALUE=DATE:"
+           & GNAT.Calendar.Time_IO.Image (T, "%Y%m%d");
+      else
+         return Prefix & ":"
+           & GNAT.Calendar.Time_IO.Image (T, "%Y%m%dT%H%M%SZ");
+      end if;
+   end To_String;
+
    procedure Write (To_File : Ada.Text_IO.File_Type) is
       procedure Write_One (Position : Lists.Cursor);
       procedure Write (Text : String);
@@ -163,23 +179,16 @@ package body Events is
       begin
          Write ("BEGIN:VEVENT");
          Write ("SUMMARY:" & Item.Summary);
-         Write ("DTSTAMP:" & Image (Item.Created, "%Y%m%dT%H%M%SZ"));
+         Write (To_String ("DTSTAMP", Item.Created, False));
          Write ("DESCRIPTION:" & Item.Description);
          Write ("LOCATION:" & Item.Location);
          Write ("CATEGORIES:" & Item.Category);
          Write ("UID:" & Item.UID);
          Write ("STATUS:CONFIRMED");
-         Write ("LAST-MODIFIED:"
-                   & Image (Item.Last_Modified, "%Y%m%dT%H%M%SZ"));
-         if Item.Is_All_Day then
-            Write ("DTSTART;VALUE=DATE:" & Image (Item.Event_Date, "%Y%m%d"));
-            Write ("DTEND;VALUE=DATE:"
-                   & Image (Item.Event_Date + Item.Event_Duration, "%Y%m%d"));
-         else
-            Write ("DTSTART:" & Image (Item.Event_Date, "%Y%m%dT%H%M%SZ"));
-            Write ("DTEND:" & Image (Item.Event_Date + Item.Event_Duration,
-                   "%Y%m%dT%H%M%SZ"));
-         end if;
+         Write (To_String ("LAST-MODIFIED", Item.Last_Modified, False));
+         Write (To_String ("DTSTART", Item.Event_Date, Item.Is_All_Day));
+         Write (To_String ("DTEND", Item.Event_Date + Item.Event_Duration,
+                       Item.Is_All_Day));
          Write_Recurrence (Item);
          Write ("SEQUENCE:0");
          Write ("END:VEVENT");
@@ -225,8 +234,9 @@ package body Events is
             Last := Last + 2;
             Result (Last + 1 .. Last + 7) := ";UNTIL=";
             Last := Last + 7;
-            Result (Last + 1 .. Last + 16) := Image (The_Event.End_Date,
-                                                     "%Y%m%dT%H%M%SZ");
+            Result (Last + 1 .. Last + 16) := To_String ("",
+                                                         The_Event.End_Date,
+                                                         False) (2 .. 17);
             Last := Last + 16;
          else
             declare
