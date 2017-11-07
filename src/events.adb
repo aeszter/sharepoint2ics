@@ -139,8 +139,8 @@ package body Events is
                   The_Event.Recurrence_Data := To_Unbounded_String (
                           Unescape (Get_Value (Fields, "ows_RecurrenceData")));
                end if;
+               List.Append (The_Event);
             end if;
-            List.Append (The_Event);
          end;
       end loop;
    end Read;
