@@ -90,14 +90,11 @@ package body Events is
                if Name (Entry_Node) /= "z:row" then
                   raise Unexpected_Node with Integer'Image (I);
                end if;
-               The_Event.Created := GNAT.Calendar.Time_IO.Value
-                 (Shift (Created_String));
-               The_Event.Last_Modified := GNAT.Calendar.Time_IO.Value
-                 (Shift (Modified_String));
-               The_Event.Event_Date := GNAT.Calendar.Time_IO.Value
-                 (Shift (Start_String));
-               The_Event.End_Date := GNAT.Calendar.Time_IO.Value
-                 (Shift (End_String));
+               The_Event.Created := To_Time (Created_String);
+               The_Event.Last_Modified := To_Time (Modified_String);
+               The_Event.Event_Date := To_Time (Start_String);
+               The_Event.End_Date := To_Time (End_String);
+               The_Event.Recurrence_ID := To_Time (Recurrence_ID);
                The_Event.Event_Duration := Ada.Real_Time.To_Duration (
                                         Ada.Real_Time.Seconds (
                                         Integer'Value (

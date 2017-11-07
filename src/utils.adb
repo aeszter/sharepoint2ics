@@ -1,6 +1,8 @@
 with Ada.Text_IO;
 with Ada.Characters;
 with Ada.Characters.Latin_1;
+with GNAT.Calendar;
+with GNAT.Calendar.Time_IO;
 
 package body Utils is
 
@@ -30,6 +32,20 @@ package body Utils is
    begin
       return Result;
    end Shift;
+
+   function To_Time (Source : String) return Ada.Calendar.Time is
+      use GNAT.Calendar;
+   begin
+      return Time_IO.Value (Shift (Source));
+   exception
+      when Constraint_Error =>
+         return Time_Of (Year    => 1999,
+                         Month   => 12,
+                         Day     => 31,
+                         Hour    => 23,
+                         Minute  => 59,
+                         Second  => 53);
+   end To_Time;
 
    function Unescape (S : String) return String is
       Result : String (1 .. S'Length);
