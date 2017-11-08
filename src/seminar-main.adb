@@ -16,7 +16,7 @@ begin
               Output => Argument (2));
    else
       Ada.Text_IO.Put_Line ("sharepoint2ics " & Version);
-      Ada.Text_IO.Put_Line ("Usage: calendar infile.xml outfile.ics");
+      Ada.Text_IO.Put_Line ("Usage: " & Command_Name & " infile.xml outfile.ics");
    end if;
 
 end Seminar.Main;
