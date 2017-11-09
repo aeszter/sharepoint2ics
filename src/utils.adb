@@ -33,6 +33,12 @@ package body Utils is
       return Result;
    end Shift;
 
+   function To_String (N : Natural) return String is
+      S : constant String := Integer'Image (N);
+   begin
+      return S (2 .. S'Last);
+   end To_String;
+
    function To_Time (Source : String) return Ada.Calendar.Time is
       use GNAT.Calendar;
    begin
