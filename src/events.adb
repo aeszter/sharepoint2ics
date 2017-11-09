@@ -294,7 +294,7 @@ package body Events is
          procedure Count_Exceptions (Position : Lists.Cursor);
          procedure Do_Deletion (Position : Lists.Cursor);
 
-         Sequence_Number : Natural := 0;
+         Sequence_Number, Counter : Natural := 0;
 
          procedure Count_Exceptions (Position : Lists.Cursor) is
             Excepted_Event : constant Event := Lists.Element (Position);
@@ -302,8 +302,11 @@ package body Events is
             if Excepted_Event.The_Type = Excepted and then
               Excepted_Event.Master_ID = The_Event.Master_ID
             then
-               Sequence_Number := Sequence_Number + 1;
+               Counter := Counter + 1;
                --  fixme : terminate when the_event is reached
+            end if;
+            if Excepted_Event.Recurrence_ID = The_Event.Recurrence_ID then
+               Sequence_Number := Counter;
             end if;
          end Count_Exceptions;
 
@@ -326,9 +329,9 @@ package body Events is
                               The_Event.Recurrence_ID,
                               The_Event.Is_All_Day));
             List.Iterate (Count_Exceptions'Access);
-
-            Write ("SEQUENCE:" & Integer'Image (Sequence_Number));
          end if;
+
+         Write ("SEQUENCE:" & To_String (Sequence_Number));
       end Write_Exceptions;
 
       procedure Write_One (Position : Lists.Cursor) is
