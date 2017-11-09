@@ -8,6 +8,8 @@ with DOM.Core;
 
 package Events is
    type Event_Type is (None, Normal, Reserved, Deleted, Excepted);
+   type Interval is (daily, weekly, monthly, yearly);
+   type Month_Day is (first, second, third, fourth, last);
 
    type Event is record
       Created, Last_Modified,
@@ -23,6 +25,8 @@ package Events is
    end record;
 
    function To_Event_Type (S : String) return Event_Type;
+   function To_String (I : Interval) return String;
+   function To_Month_Day (S : String) return Month_Day;
 
    Unexpected_Node : exception;
 

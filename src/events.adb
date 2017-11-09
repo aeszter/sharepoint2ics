@@ -5,7 +5,7 @@ with Ada.Characters.Latin_1;
 with Ada.Real_Time;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Strings.Fixed;
-with GNAT.Calendar;
+with GNAT.Calendar; use GNAT.Calendar;
 with GNAT.Calendar.Time_IO;
 
 with DOM.Core; use DOM.Core;
@@ -20,12 +20,26 @@ with Unicode.CES.Basic_8bit;
 with Utils; use Utils;
 with Sax;
 with Sax.Readers;
+with GNAT.Case_Util;
 
 package body Events is
+   subtype Day_Name is GNAT.Calendar.Day_Name;
+   type Week is array (Day_Name) of Boolean;
+
    function Extract_UID (Source : String) return String;
    function To_String (Prefix : String;
                        T       : Ada.Calendar.Time;
                        All_Day : Boolean) return String;
+
+   function Get_Value (Fields : Named_Node_Map;
+                       Name   : String) return String;
+
+   procedure Set (The_Days : in out Week; Which : String);
+   procedure Parse_Weekdays (The_Days : out Week; Attrs : Named_Node_Map);
+   function To_String (The_Days : Week) return String;
+   function To_String (The_Day : Day_Name) return String;
+   function To_Day_Name (Source : String) return Day_Name;
+
 
    function Extract_UID (Source : String) return String is
       use Ada.Strings;
@@ -45,23 +59,48 @@ package body Events is
       end if;
    end Extract_UID;
 
+   function Get_Value (Fields : Named_Node_Map;
+                       Name   : String) return String is
+      The_Item : constant Node := Get_Named_Item (Fields, Name);
+   begin
+      if The_Item = null then
+         return "";
+      else
+         return Value (The_Item);
+      end if;
+   end Get_Value;
+
+   procedure Parse_Weekdays (The_Days : out Week; Attrs : Named_Node_Map) is
+      function Get_Boolean (Name : String) return Boolean;
+
+      function Get_Boolean (Name : String) return Boolean is
+         S : constant String := Get_Value (Attrs, Name);
+      begin
+         if S = "TRUE" then
+            return True;
+         elsif S = "" then
+            return False;
+         else
+            Warn ("Unknown truth value " & S & " for " & Name);
+            return False;
+         end if;
+      end Get_Boolean;
+
+   begin
+      The_Days (Monday)    := Get_Boolean ("mo");
+      The_Days (Tuesday)   := Get_Boolean ("tu");
+      The_Days (Wednesday) := Get_Boolean ("we");
+      The_Days (Thursday)  := Get_Boolean ("th");
+      The_Days (Friday)    := Get_Boolean ("fr");
+      The_Days (Saturday)  := Get_Boolean ("sa");
+      The_Days (Tuesday)   := Get_Boolean ("tu");
+      The_Days (Sunday)    := Get_Boolean ("su");
+   end Parse_Weekdays;
+
    procedure Read (Data_Nodes : DOM.Core.Node_List) is
 
-      function Get_Value (Fields : Named_Node_Map;
-                          Name   : String) return String;
       List_Node : Node;
       All_Nodes : Node_List;
-
-      function Get_Value (Fields : Named_Node_Map;
-                          Name   : String) return String is
-         The_Item : constant Node := Get_Named_Item (Fields, Name);
-      begin
-         if The_Item = null then
-            return "";
-         else
-            return Value (The_Item);
-         end if;
-      end Get_Value;
 
    begin
       if Length (Data_Nodes) > 1 then
@@ -145,6 +184,34 @@ package body Events is
       end loop;
    end Read;
 
+   procedure Set (The_Days : in out Week;
+                  Which    : String) is
+   begin
+      The_Days (To_Day_Name (Which)) := True;
+   end Set;
+
+   function To_Day_Name (Source : String) return Day_Name is
+      S : String (1 .. 2) := Source;
+   begin
+      GNAT.Case_Util.To_Upper (S);
+      if S = "MO" then
+         return Monday;
+      elsif S = "TU" then
+         return Tuesday;
+      elsif S = "WE" then
+         return Wednesday;
+      elsif S = "TH" then
+         return Thursday;
+      elsif S = "FR" then
+         return Friday;
+      elsif S = "SA" then
+         return Saturday;
+      elsif S = "SU" then
+         return Sunday;
+      else raise Constraint_Error with Source;
+      end if;
+   end To_Day_Name;
+
    function To_Event_Type (S : String) return Event_Type is
    begin
       if S = "0" then
@@ -161,6 +228,32 @@ package body Events is
       end if;
    end To_Event_Type;
 
+   function To_Month_Day (S : String) return Month_Day is
+   begin
+      return Month_Day'Value (S);
+   end To_Month_Day;
+
+   function To_String (The_Days : Week) return String is
+      Result : String (1 .. 21);
+      Last : Natural := 0;
+   begin
+      for D in The_Days'Range loop
+         if The_Days (D) then
+            Result (Last + 1 .. Last + 2) := To_String (D);
+            Result (Last + 3) := ',';
+            Last := Last + 3;
+         end if;
+      end loop;
+      return Result (1 .. Last - 1);
+   end To_String;
+
+   function To_String (The_Day : Day_Name) return String is
+      Result : String := Day_Name'Image (The_Day);
+   begin
+      GNAT.Case_Util.To_Upper (Result);
+      return Result (1 .. 2);
+   end To_String;
+
    function To_String (Prefix : String;
                        T       : Ada.Calendar.Time;
                        All_Day : Boolean) return String is
@@ -172,6 +265,11 @@ package body Events is
          return Prefix & ":"
            & GNAT.Calendar.Time_IO.Image (T, "%Y%m%dT%H%M%SZ");
       end if;
+   end To_String;
+
+   function To_String (I : Interval) return String is
+   begin
+      return Interval'Image (I);
    end To_String;
 
    procedure Write (To_File : Ada.Text_IO.File_Type) is
@@ -263,50 +361,45 @@ package body Events is
          use GNAT.Calendar.Time_IO;
 
          S          : constant String := To_String (The_Event.Recurrence_Data);
-         Result     : String (1 .. 1_024);
-         Last       : Natural := 0;
-         I, Len     : Positive;
+         The_Days   : Week;
+         Day_In_Month : Natural := 0;
+         The_Month_Day : Month_Day;
+         I          : Positive;
          Period     : Positive;
          XML_String : String_Input;
+         The_Interval : Interval;
+         Repeat_Instances : Natural := 0;
+         Repeat_Forever : Boolean := False;
+         Window_End : Time;
       begin
          if S = "" then
             return;
          end if;
-         Result (1 .. 6) := "RRULE:";
-         Last := 6;
          if S (1 .. 5) = "Every" then
-            Result (Last + 1 .. Last + 5) := "FREQ:";
-            Last := Last + 5;
             I := Index (Source => S, From => 7, Pattern => " ");
             Period := Integer'Value (S (7 .. I - 1));
             if S (I + 1 .. I + 7) = "week(s)" then
-               Result (Last + 1 .. Last + 16) := "WEEKLY;INTERVAL=";
-               Last := Last + 16;
+               The_Interval := weekly;
             else
                Warn ("Unsupported FREQ " & S (I + 1 .. I + 7));
             end if;
-            Len := Integer'Image (Period)'Length - 1; -- leading space
-            Result (Last + 1 .. Last + Len) :=
-              Integer'Image (Period) (2 .. Len + 1);
-            Last := Last + Len;
-            Result (Last + 1 .. Last + 8) := ";WKST=MO";
-            Last := Last + 8;
-            Result (Last + 1 .. Last + 7) := ";BYDAY=";
-            Last := Last + 7;
-            Result (Last + 1 .. Last + 2) := S (I + 13 .. I + 14);
-            Last := Last + 2;
-            Result (Last + 1 .. Last + 7) := ";UNTIL=";
-            Last := Last + 7;
-            Result (Last + 1 .. Last + 16) := To_String ("",
-                                                         The_Event.End_Date,
-                                                         False) (2 .. 17);
-            Last := Last + 16;
+            Set (The_Days, S (I + 13 .. I + 14));
+            Write ("RRULE:FREQ=" & To_String (The_Interval)
+                   & ";INTERVAL=" & To_String (Period)
+                   & ";BYDAY=" & To_String (The_Days)
+                   & ";UNTIL=" & To_String ("",
+                                            The_Event.End_Date,
+                                            False) (2 .. 17));
          else
             declare
-               Reader          : DOM.Readers.Tree_Reader;
-               XML_Doc         : DOM.Core.Document;
-               Base_Nodes, Rules, Rule_Items       : Node_List;
-               Recurrence_Node, The_Rule, The_Item : Node;
+               Reader           : DOM.Readers.Tree_Reader;
+               XML_Doc          : DOM.Core.Document;
+               Base_Nodes, Rules,
+               Rule_Items       : Node_List;
+
+               Recurrence_Node, The_Rule,
+               The_Item, Rep_Item        : Node;
+               Week_Start       : String (1 .. 2);
             begin
                Reader.Set_Feature (Sax.Readers.Validation_Feature, False);
                Reader.Set_Feature (Sax.Readers.Namespace_Feature, False);
@@ -325,38 +418,86 @@ package body Events is
                end if;
                Recurrence_Node := Item (Base_Nodes, 0);
                Rules := Child_Nodes (Recurrence_Node);
-               for I in 0 .. Length (Rules) - 1 loop
-                  The_Rule := Item (Rules, I);
-                  if Name (The_Rule) = "rule" then
-                     Rule_Items := Child_Nodes (The_Rule);
-                     for J in 0 .. Length (Rule_Items) - 1 loop
-                        The_Item := Item (Rule_Items, J);
-                        if Name (The_Item) = "firstDayOfWeek" then
-                           Result (Last + 1 .. Last + 6) := ";WKST=";
-                           Last := Last + 6;
-                           Result (Last + 1 .. Last + 2)
-                             := Value (First_Child (The_Item));
-                           Last := Last + 2;
-                        elsif Name (The_Item) = "repeat" then
-                           null; -- FIXME
-                        elsif Name (The_Item) = "repeatInstances" then
-                           null; -- FIXME
-                        elsif Name (The_Item) = "windowEnd" then
-                           null; -- FIXME
-                        elsif Name (The_Item) = "repeatForever" then
-                           null; -- FIXME
-                        elsif Name (The_Item) = "#Text" then
-                           null; -- ignore
-                        else
-                           Warn ("Unknown tag " & Name (The_Item)
-                                 & "found in recurrence rule");
-                        end if;
-                     end loop;
+               The_Rule := Item (Rules, 0);
+               if Name (The_Rule) /= "rule" then
+                  raise Unexpected_Node with Name (The_Rule);
+               end if;
+
+               Rule_Items := Child_Nodes (The_Rule);
+               for J in 0 .. Length (Rule_Items) - 1 loop
+                  The_Item := Item (Rule_Items, J);
+                  if Name (The_Item) = "firstDayOfWeek" then
+                     Week_Start := Value (First_Child (The_Item));
+                     GNAT.Case_Util.To_Upper (Week_Start);
+                  elsif Name (The_Item) = "repeat" then
+                     Rep_Item := First_Child (The_Item);
+                     if Name (Rep_Item) = "daily" then
+                        The_Interval := daily;
+                        Period := Integer'Value (
+                                  Get_Value (Attributes (Rep_Item),
+                                             "dayFrequency"));
+                     elsif Name (Rep_Item) = "weekly" then
+                        The_Interval := weekly;
+                        Parse_Weekdays (The_Days, Attributes (Rep_Item));
+                     elsif Name (Rep_Item) = "monthly" then
+                        The_Interval := monthly;
+                        Day_In_Month := Integer'Value (
+                                       Get_Value (Attributes (Rep_Item),
+                                                  "day"));
+                        Period := Integer'Value (
+                                      Get_Value (Attributes (Rep_Item),
+                                                 "monthFrequency"));
+                     elsif Name (Rep_Item) = "monthlyByDay" then
+                        The_Interval := monthly;
+                        Parse_Weekdays (The_Days, Attributes (Rep_Item));
+                        Period := Integer'Value (
+                                      Get_Value (Attributes (Rep_Item),
+                                                 "monthFrequency"));
+                        null; -- FIXME: some more elaborate variants
+                        --  unsupported as yet
+                     elsif Name (Rep_Item) = "yearly" then
+                        The_Interval := yearly;
+                        Period := Integer'Value (
+                                      Get_Value (Attributes (Rep_Item),
+                                                 "yearFrequency"));
+                        Day_In_Month := Integer'Value (
+                                      Get_Value (Attributes (Rep_Item),
+                                                  "day"));
+                        --  FIXME: also set month
+                     elsif Name (Rep_Item) = "yearlyByDay" then
+                        The_Interval := yearly;
+                        Period := Integer'Value (
+                                      Get_Value (Attributes (Rep_Item),
+                                                 "yearFrequency"));
+                        Parse_Weekdays (The_Days, Attributes (Rep_Item));
+                        The_Month_Day := To_Month_Day (
+                                      Get_Value (Attributes (Rep_Item),
+                                                 "weekDayOfMonth"));
+                     else
+                        raise Unexpected_Node with Name (Rep_Item);
+                     end if;
+                  elsif Name (The_Item) = "repeatInstances" then
+                     Repeat_Instances := Integer'Value (Value (
+                                                   First_Child (The_Item)));
+                  elsif Name (The_Item) = "windowEnd" then
+                     Window_End := To_Time (Value (First_Child (The_Item)));
+                  elsif Name (The_Item) = "repeatForever" then
+                     Repeat_Forever := True;
+                  elsif Name (The_Item) = "#Text" then
+                     null; -- ignore
+                  else
+                     Warn ("Unknown tag " & Name (The_Item)
+                           & "found in recurrence rule");
                   end if;
                end loop;
             end;
+            Write ("RRULE:FREQ=" & To_String (The_Interval)
+                   & ";INTERVAL=" & To_String (Period)
+                   & ";BYDAY=" & To_String (The_Days)
+                   & ";UNTIL=" & To_String ("",
+                                            The_Event.End_Date,
+                                            False) (2 .. 17));
          end if;
-         Write (Result (1 .. Last));
       end Write_Recurrence;
 
    begin
