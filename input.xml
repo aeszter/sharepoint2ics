@@ -12,11 +12,54 @@
          <FieldRef Name="ID" />
          <Value Type="Counter">9999</Value>
       </Lt>
+   <DateRangesOverlap>
+          <FieldRef Name="EventDate" />
+         <FieldRef Name="EndDate" />
+        <FieldRef Name="RecurrenceID" />
+         <Value Type="DateTime">
+               <Month/>
+        </Value>
+        </DateRangesOverlap>
    </Where>
-</Query></query> 
-                            <!-- <ViewFields><fieldRef Name="Title" /></ViewFields> -->
-                            <QueryOptions><IncludeMandatoryColumns>FALSE</IncludeMandatoryColumns><DateInUtc>TRUE</DateInUtc></QueryOptions>
-                            <!-- <webId></webId> -->
-        </GetListItems>
-    </s:Body>
+   </Query></query> 
+<!-- <ViewFields><fieldRef Name="Title" /></ViewFields> -->
+ <viewFields>
+<ViewFields>
+  <FieldRef Name="FileRef" />
+  <FieldRef Name="EventDate" />
+  <FieldRef Name="Duration" />
+  <FieldRef Name="EndDate" />
+  <FieldRef Name="fAllDayEvent" />
+  <FieldRef Name="Author" />
+  <FieldRef Name="Editor" />
+  <FieldRef Name="Description" />
+  <FieldRef Name="Category" />
+  <FieldRef Name="Created" />
+  <FieldRef Name="Modified" />
+  <FieldRef Name="Location" />
+  <FieldRef Name="fRecurrence" />
+  <FieldRef Name="RecurrenceData" />
+  <FieldRef Name="RecurrenceID" />
+  <FieldRef Name="UID" />
+  <FieldRef Name="UniqueId" />
+  <FieldRef Name="MasterSeriesItemID" />
+  <FieldRef Name="AssignedTo" />
+  <FieldRef Name="AssignedToTypeIsGroupOrPerson" />
+  <FieldRef Name="IsDeleted" />
+  <FieldRef Name="Description" />
+  <FieldRef Name="EventType" />
+  <FieldRef Name="Categories" />
+  <FieldRef Name="Title" />
+  <FieldRef Name="Attachments" />
+  <FieldRef Name="TimeZone" />
+  <FieldRef Name="XMLTZone" />
+</ViewFields>
+</viewFields>
+
+<queryOptions><QueryOptions><IncludeMandatoryColumns>FALSE</IncludeMandatoryColumns><DateInUtc>TRUE</DateInUtc>
+  <RecurrencePatternXMLVersion>v3</RecurrencePatternXMLVersion>
+  <ExpandRecurrence>True</ExpandRecurrence></QueryOptions></queryOptions>
+<!-- <webId></webId> -->
+</GetListItems>
+</s:Body>
 </s:Envelope>
