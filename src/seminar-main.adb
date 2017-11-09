@@ -6,7 +6,7 @@ with Convert;
 procedure Seminar.Main is
    use Ada.Command_Line;
 
-   Version : constant String := "v0.1";
+   Version : constant String := "develop";
 
 --  AWS does not support NTLM, so we rely on wget to perform the actual SOAP call;
 --
