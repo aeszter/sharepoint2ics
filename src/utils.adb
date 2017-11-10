@@ -1,7 +1,6 @@
 with Ada.Text_IO;
 with Ada.Characters;
 with Ada.Characters.Latin_1;
-with Ada.Strings.Fixed;
 with GNAT.Calendar;
 with GNAT.Calendar.Time_IO;
 
@@ -39,32 +38,6 @@ package body Utils is
    begin
       return S (2 .. S'Last);
    end To_String;
-
-   procedure To_String_List
-     (Source  : String;
-      Dest    : out POSIX.POSIX_String_List)
-   is
-      use POSIX;
-
-      Next_Index : Natural := 1;
-      Index_List : array (1 .. 256) of Natural;
-   begin
-      Index_List (Next_Index) := Source'First;
-      while Index_List (Next_Index) <= Source'Last loop
-         Next_Index := Next_Index + 1;
-         Index_List (Next_Index) := 1 + Ada.Strings.Fixed.Index
-           (Source (Index_List (Next_Index - 1) .. Source'Last),
-            " ");
-
-         if Index_List (Next_Index) = 1 then
-            Index_List (Next_Index) := Source'Last + 2;
-         end if;
-         Append (Dest,
-                 To_POSIX_String
-                   (Source (Index_List (Next_Index - 1) ..
-                      Index_List (Next_Index) - 2)));
-      end loop;
-   end To_String_List;
 
    function To_Time (Source : String) return Ada.Calendar.Time is
       use GNAT.Calendar;

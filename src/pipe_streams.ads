@@ -23,8 +23,7 @@ package Pipe_Streams is
 
    procedure Execute (P : in out Pipe_Stream;
                       Command : String;
-                      Arguments : String;
-                      Environment : String);
+                      Arguments : POSIX_String_List);
 private
    type Pipe_Stream is new Input_Source with record
       Pipe        : File_Descriptor;

@@ -1,11 +1,9 @@
-with Ada.Strings.Fixed;
 with Ada.IO_Exceptions;
 
 with POSIX.Process_Primitives; use POSIX.Process_Primitives;
 with POSIX.Process_Identification; use POSIX.Process_Identification;
 with POSIX.Process_Environment; use POSIX.Process_Environment;
 
-with Utils;
 
 package body Pipe_Streams is
 
@@ -66,13 +64,10 @@ package body Pipe_Streams is
 
    procedure Execute (P : in out Pipe_Stream;
                       Command : String;
-                      Arguments : String;
-                      Environment : String)
+                      Arguments : POSIX_String_List)
    is
       To_QView : POSIX.IO.File_Descriptor;
       Template : Process_Template;
-      Arg_List : POSIX_String_List;
-      Separator : constant Natural := Ada.Strings.Fixed.Index (Environment, "=");
       Env : POSIX.Process_Environment.Environment;
    begin
       POSIX.IO.Create_Pipe (Read_End  => P.Pipe,
@@ -84,19 +79,10 @@ package body Pipe_Streams is
                                     File      => Standard_Output,
                                     From_File => To_QView);
 
-      Utils.To_String_List (Source => Command & " " & Arguments,
-                            Dest   => Arg_List);
-      Set_Environment_Variable
-        (Name  => To_POSIX_String (Environment
-         (Environment'First .. Separator - 1)),
-         Value => To_POSIX_String (Environment
-           (Separator + 1 .. Environment'Last)),
-         Env   => Env);
-
       Start_Process (Child    => P.PID,
                      Pathname => To_POSIX_String (Command),
                      Template => Template,
-                     Arg_List => Arg_List,
+                     Arg_List => Arguments,
                      Env_List => Env);
       Close (File => To_QView);
    end Execute;
