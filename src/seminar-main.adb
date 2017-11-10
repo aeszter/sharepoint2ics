@@ -9,6 +9,7 @@ with DOM.Core;
 with DOM.Core.Documents;
 with DOM.Readers;
 with Sax.Readers;
+with CGI;
 
 with Convert;
 with Pipe_Streams; use Pipe_Streams;
@@ -30,6 +31,7 @@ procedure Seminar.Main is
    User_Name, Password : Unbounded_String;
    URL, Request        : Unbounded_String;
    Arguments           : POSIX.POSIX_String_List;
+   Config_Path         : constant String := CGI.Get_Environment ("CONFIG_FILE");
 
    Config_Error, Parser_Error : exception;
 
@@ -50,9 +52,11 @@ procedure Seminar.Main is
 --  AWS does not support NTLM, so we rely on wget to perform the actual SOAP call;
 --
 begin
-   if Argument_Count = 1 then
+   if Argument_Count = 0 and then
+     Config_Path /= ""
+   then
       --  read config:
-      Open (Config_File, In_File, Argument (1));
+      Open (Config_File, In_File, Config_Path);
       while not Ada.Text_IO.End_Of_File (Config_File) loop
          declare
             use Ada.Strings;
@@ -107,6 +111,7 @@ begin
       Wget_Command.Close;
       Sharepoint_Reply := Reader.Get_Tree;
 
+      CGI.Put_CGI_Header ("Content-type: text/calendar");
       Convert (DOM.Core.Documents.Get_Elements_By_Tag_Name (
                Sharepoint_Reply, "rs:data"),
                Ada.Text_IO.Standard_Output);
@@ -114,6 +119,7 @@ begin
    else
       Ada.Text_IO.Put_Line ("sharepoint2ics " & Version & " config_file");
       Ada.Text_IO.Put_Line ("Usage: " & Command_Name);
+      Ada.Text_IO.Put_Line ("  config is read from the file at $CONFIG_FILE ");
    end if;
    exception
       when Pipe_Streams.Failed_Creation_Error =>
