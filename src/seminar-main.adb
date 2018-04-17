@@ -13,6 +13,7 @@ with CGI;
 
 with Convert;
 with Pipe_Streams; use Pipe_Streams;
+with Utils;
 
 procedure Seminar.Main is
    use Ada.Command_Line;
@@ -85,6 +86,8 @@ begin
                URL := To_Unbounded_String (Value);
             elsif Name = "request" then
                Request := To_Unbounded_String (Value);
+            elsif Name = "timezone" then
+               Utils.Timezone := To_Unbounded_String (Value);
             else
                raise Config_Error with
                  "Unknown name """ & Name & """";

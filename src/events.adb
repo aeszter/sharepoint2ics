@@ -30,6 +30,9 @@ package body Events is
    function To_String (Prefix : String;
                        T       : Ada.Calendar.Time;
                        All_Day : Boolean) return String;
+   function To_String (Prefix : String;
+                       T       : Local_Time;
+                       All_Day : Boolean) return String;
 
    function Get_Value (Fields : Named_Node_Map;
                        Name   : String) return String;
@@ -267,6 +270,20 @@ package body Events is
       end if;
    end To_String;
 
+   function To_String (Prefix : String;
+                       T       : Local_Time;
+                       All_Day : Boolean) return String is
+      The_Time : constant Ada.Calendar.Time := Ada.Calendar.Time (T);
+   begin
+      if All_Day then
+         return Prefix & ";TZID=" & Utils.Get_Timezone & ";VALUE=DATE:"
+           & GNAT.Calendar.Time_IO.Image (The_Time, "%Y%m%d");
+      else
+         return Prefix & ";TZID=" & Utils.Get_Timezone & ":"
+           & GNAT.Calendar.Time_IO.Image (The_Time, "%Y%m%dT%H%M%S");
+      end if;
+   end To_String;
+
    function To_String (I : Interval) return String is
    begin
       return Interval'Image (I);
@@ -350,8 +367,10 @@ package body Events is
          Write ("UID:" & Item.UID);
          Write ("STATUS:CONFIRMED");
          Write (To_String ("LAST-MODIFIED", Item.Last_Modified, False));
-         Write (To_String ("DTSTART", Item.Event_Date, Item.Is_All_Day));
-         Write (To_String ("DTEND", Item.Event_Date + Item.Event_Duration,
+         Write (To_String ("DTSTART", UTC_To_Local (Item.Event_Date),
+                       Item.Is_All_Day));
+         Write (To_String ("DTEND",
+                UTC_To_Local (Item.Event_Date + Item.Event_Duration),
                        Item.Is_All_Day));
          Write_Recurrence (Item);
          Write_Exceptions (Item);

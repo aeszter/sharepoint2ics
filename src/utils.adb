@@ -3,6 +3,7 @@ with Ada.Characters;
 with Ada.Characters.Latin_1;
 with GNAT.Calendar;
 with GNAT.Calendar.Time_IO;
+with Ada.Calendar.Time_Zones;
 
 package body Utils is
 
@@ -26,6 +27,11 @@ package body Utils is
       end loop;
       return Result (1 .. K);
    end Clean_Text;
+
+   function Get_Timezone return String is
+   begin
+      return Ada.Strings.Unbounded.To_String (Timezone);
+   end Get_Timezone;
 
    function Shift (S : String) return String is
       Result : constant String (1 .. S'Length) := S;
@@ -83,6 +89,13 @@ package body Utils is
       end loop;
       return Result (1 .. R - 1);
    end Unescape;
+
+   function UTC_To_Local (T : Ada.Calendar.Time) return Local_Time is
+      use Ada.Calendar;
+   begin
+      return Local_Time (T
+                    + 60 * Duration (Time_Zones.UTC_Time_Offset (T)));
+   end UTC_To_Local;
 
    procedure Warn (Text : String) is
       use Ada.Text_IO;
