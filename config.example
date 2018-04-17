@@ -4,3 +4,4 @@ username=myuser
 password=$ecret
 url=https://sharepoint.example.org/_vti_bin/lists.asmx
 request=/path/to/input.xml
+timezone=Europe/Berlin
