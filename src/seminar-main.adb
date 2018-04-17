@@ -23,7 +23,7 @@ procedure Seminar.Main is
    procedure Append (Source : in out POSIX.POSIX_String_List;
                      New_Item : Unbounded_String);
 
-   Version : constant String := "v0.2";
+   Version : constant String := "v0.3";
    Config_File         : Ada.Text_IO.File_Type;
    Wget_Command        : Pipe_Stream;
    Reader              : DOM.Readers.Tree_Reader;
