@@ -13,6 +13,7 @@ with CGI;
 
 with Convert;
 with Pipe_Streams; use Pipe_Streams;
+with Utils;
 
 procedure Seminar.Main is
    use Ada.Command_Line;
@@ -22,7 +23,7 @@ procedure Seminar.Main is
    procedure Append (Source : in out POSIX.POSIX_String_List;
                      New_Item : Unbounded_String);
 
-   Version : constant String := "v0.2";
+   Version : constant String := "v0.3";
    Config_File         : Ada.Text_IO.File_Type;
    Wget_Command        : Pipe_Stream;
    Reader              : DOM.Readers.Tree_Reader;
@@ -85,6 +86,8 @@ begin
                URL := To_Unbounded_String (Value);
             elsif Name = "request" then
                Request := To_Unbounded_String (Value);
+            elsif Name = "timezone" then
+               Utils.Timezone := To_Unbounded_String (Value);
             else
                raise Config_Error with
                  "Unknown name """ & Name & """";
