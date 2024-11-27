@@ -1,4 +1,4 @@
-with "/sw/cluster/florist17/share/gpr/florist.gpr";
+with "florist";
 
 project Seminar is
 
@@ -11,7 +11,7 @@ project Seminar is
       ("default", "relocatable");
    Aws_Build : Build_Kind1 := external ("AWS_BUILD");
    type Build_Kind2 is
-      ("default");
+      ("static");
    Florist_Build : Build_Kind2 := external ("FLORIST_BUILD");
 
    case Xmlada_Build is
@@ -24,7 +24,7 @@ project Seminar is
 
                case Florist_Build is
 
-                  when "default" =>
+                  when "static" =>
                      for Main use ("debug.adb", "seminar-main.adb");
                      for Source_Dirs use ("src/**", "../tools/XMLAda/xmlada-3.2.1-src/**", "../tools/adacgi-1.6");
                end case;
