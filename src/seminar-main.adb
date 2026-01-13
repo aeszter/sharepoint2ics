@@ -3,7 +3,9 @@ with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Exceptions; use Ada.Exceptions;
 with Ada.Strings.Fixed;
+with Ada.Environment_Variables;
 with POSIX;
+with POSIX.Process_Environment;
 
 with DOM.Core;
 with DOM.Core.Documents;
@@ -22,6 +24,7 @@ procedure Seminar.Main is
                      New_Item : String);
    procedure Append (Source : in out POSIX.POSIX_String_List;
                      New_Item : Unbounded_String);
+   procedure Copy_Curl_Env (Name, Value : String);
 
    Version : constant String := "v0.4";
    Config_File         : Ada.Text_IO.File_Type;
@@ -32,6 +35,7 @@ procedure Seminar.Main is
    User_Name, Password : Unbounded_String;
    URL, Request        : Unbounded_String;
    Arguments           : POSIX.POSIX_String_List;
+   Curl_Env            : POSIX.Process_Environment.Environment;
    Config_Path         : constant String := CGI.Get_Environment ("CONFIG_FILE");
 
    Config_Error, Parser_Error : exception;
@@ -49,6 +53,18 @@ procedure Seminar.Main is
    begin
       Append (Source, To_POSIX_String (To_String (New_Item)));
    end Append;
+
+   procedure Copy_Curl_Env (Name, Value : String) is
+      use POSIX;
+      use POSIX.Process_Environment;
+   begin
+      if Name (Name'First .. Name'First + 4) = "CURL_" then
+         Set_Environment_Variable (Name => To_POSIX_String (Name (Name'First + 5 .. Name'Last)),
+                                   Value => To_POSIX_String (Value),
+                                   Env   => Curl_Env);
+      end if;
+   end Copy_Curl_Env;
+
 
 --  AWS does not support NTLM, so we rely on curl to perform the actual SOAP call;
 --
@@ -110,8 +126,11 @@ begin
       Append (Arguments, "-o-");
       Append (Arguments, URL);
 
+      Ada.Environment_Variables.Iterate (Copy_Curl_Env'Access);
+
       Curl_Command.Execute (Command => To_String (Curl_Path),
-                            Arguments => Arguments);
+                            Arguments => Arguments,
+                            Env => Curl_Env);
       Reader.Set_Feature (Sax.Readers.Validation_Feature, False);
       Reader.Set_Feature (Sax.Readers.Namespace_Feature, False);
       Reader.Parse (Curl_Command);

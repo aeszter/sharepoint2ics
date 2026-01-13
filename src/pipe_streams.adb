@@ -64,11 +64,12 @@ package body Pipe_Streams is
 
    procedure Execute (P : in out Pipe_Stream;
                       Command : String;
-                      Arguments : POSIX_String_List)
+                      Arguments : POSIX_String_List;
+                      Env : POSIX.Process_Environment.Environment)
    is
       To_QView : POSIX.IO.File_Descriptor;
       Template : Process_Template;
-      Env : POSIX.Process_Environment.Environment;
+
    begin
       POSIX.IO.Create_Pipe (Read_End  => P.Pipe,
                             Write_End => To_QView);
