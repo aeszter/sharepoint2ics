@@ -5,3 +5,8 @@ response.xml
 test.ics
 call_wget.sh
 config
+/obj/
+/bin/
+/alire/
+/config/
+build/

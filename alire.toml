@@ -1,0 +1,17 @@
+name = "sharepoint2ics"
+description = "Shiny new project"
+version = "0.1.0-dev"
+
+authors = ["Ansgar Esztermann"]
+maintainers = ["Ansgar Esztermann <aeszter@mpinat.mpg.de>"]
+maintainers-logins = ["aeszter"]
+
+executables = ["sharepoint2ics"]
+[[depends-on]]
+florist = "*"
+[[depends-on]]
+florist_blady = "*"
+[[depends-on]]
+aws = "^21.0.0"
+[[depends-on]]
+adacgi = "*"

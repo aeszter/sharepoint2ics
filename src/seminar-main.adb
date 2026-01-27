@@ -58,7 +58,8 @@ procedure Seminar.Main is
       use POSIX;
       use POSIX.Process_Environment;
    begin
-      if Name (Name'First .. Name'First + 4) = "CURL_" then
+      if Name'Length > 5 and then
+        Name (Name'First .. Name'First + 4) = "CURL_" then
          Set_Environment_Variable (Name => To_POSIX_String (Name (Name'First + 5 .. Name'Last)),
                                    Value => To_POSIX_String (Value),
                                    Env   => Curl_Env);
