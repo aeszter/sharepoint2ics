@@ -26,7 +26,7 @@ procedure Seminar.Main is
                      New_Item : Unbounded_String);
    procedure Copy_Curl_Env (Name, Value : String);
 
-   Version : constant String := "v0.4";
+   Version : constant String := "v0.5";
    Config_File         : Ada.Text_IO.File_Type;
    Curl_Command        : Pipe_Stream;
    Reader              : DOM.Readers.Tree_Reader;
