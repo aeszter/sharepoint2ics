@@ -10,8 +10,5 @@ This project tries to remedy the situation by using Sharepoint's SOAP API to fet
 
 ## Shortcomings
 Ada's web library (AWS) does not support NTLM, the authentication mechanism employed by sharepoint. 
-Therefore, sharepoint2ics uses a hand-crafted XML file and wget to perform the SOAP call.
-In the current, early versions, this has to be done externally (e.g. by a shell script). 
+Therefore, sharepoint2ics uses a hand-crafted XML file and curl to perform the SOAP call.
 The input file is supplied as part of the project, and the _seminar_ binary will convert the received XML file to ics.
-
-In future versions, sharepoint2ics is expected to call wget on its own, and the user just has to supply a config file containing Sharepoint URL and credentials.

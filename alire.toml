@@ -1,10 +1,11 @@
 name = "sharepoint2ics"
-description = "Shiny new project"
+description = "Read a sharepoint calendar and write an appropriate ics file"
 version = "0.5.0-dev"
 
 authors = ["Ansgar Esztermann"]
 maintainers = ["Ansgar Esztermann <aeszter@mpinat.mpg.de>"]
 maintainers-logins = ["aeszter"]
+licenses = "MIT"
 
 executables = ["sharepoint2ics"]
 [[depends-on]]
