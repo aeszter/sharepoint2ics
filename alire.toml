@@ -1,6 +1,6 @@
 name = "sharepoint2ics"
 description = "Shiny new project"
-version = "0.1.0-dev"
+version = "0.5.0-dev"
 
 authors = ["Ansgar Esztermann"]
 maintainers = ["Ansgar Esztermann <aeszter@mpinat.mpg.de>"]

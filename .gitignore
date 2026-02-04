@@ -10,3 +10,7 @@ config
 /alire/
 /config/
 build/
+seminar-loc.xml
+.vagrant/
+.clangd/
+.clang-format
