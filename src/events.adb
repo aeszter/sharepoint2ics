@@ -446,7 +446,8 @@ package body Events is
                    & ";BYDAY=" & To_String (The_Days)
                    & ";UNTIL=" & To_String ("",
                                             The_Event.End_Date,
-                                            False, True) (2 .. 17));
+                                            All_Day => False,
+                                            Local => False) (2 .. 17));
          else
             declare
                Reader           : DOM.Readers.Tree_Reader;
