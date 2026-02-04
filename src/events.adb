@@ -1,12 +1,14 @@
 with Ada.Calendar; use Ada.Calendar;
+with Ada.Calendar.Time_Zones;
+with Ada.Calendar.Formatting;
 with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Characters;
 with Ada.Characters.Latin_1;
+with Ada.Exceptions; use Ada.Exceptions;
 with Ada.Real_Time;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Strings.Fixed;
 with GNAT.Calendar; use GNAT.Calendar;
-with GNAT.Calendar.Time_IO;
 
 with DOM.Core; use DOM.Core;
 with DOM.Core.Attrs; use DOM.Core.Attrs;
@@ -29,10 +31,7 @@ package body Events is
    function Extract_UID (Source : String) return String;
    function To_String (Prefix : String;
                        T       : Ada.Calendar.Time;
-                       All_Day : Boolean) return String;
-   function To_String (Prefix : String;
-                       T       : Local_Time;
-                       All_Day : Boolean) return String;
+                       All_Day, Local : Boolean) return String;
 
    function Get_Value (Fields : Named_Node_Map;
                        Name   : String) return String;
@@ -42,7 +41,6 @@ package body Events is
    function To_String (The_Days : Week) return String;
    function To_String (The_Day : Day_Name) return String;
    function To_Day_Name (Source : String) return Day_Name;
-
 
    function Extract_UID (Source : String) return String is
       use Ada.Strings;
@@ -211,7 +209,8 @@ package body Events is
          return Saturday;
       elsif S = "SU" then
          return Sunday;
-      else raise Constraint_Error with Source;
+      else
+         raise Constraint_Error with Source;
       end if;
    end To_Day_Name;
 
@@ -259,29 +258,58 @@ package body Events is
 
    function To_String (Prefix : String;
                        T       : Ada.Calendar.Time;
-                       All_Day : Boolean) return String is
-   begin
-      if All_Day then
-         return Prefix & ";VALUE=DATE:"
-           & GNAT.Calendar.Time_IO.Image (T, "%Y%m%d");
-      else
-         return Prefix & ":"
-           & GNAT.Calendar.Time_IO.Image (T, "%Y%m%dT%H%M%SZ");
-      end if;
-   end To_String;
+                       All_Day : Boolean;
+             Local   : Boolean) return String is
+      use Ada.Calendar.Time_Zones;
+      function Pad (S : String; Length : Integer := 2) return String;
 
-   function To_String (Prefix : String;
-                       T       : Local_Time;
-                       All_Day : Boolean) return String is
-      The_Time : constant Ada.Calendar.Time := Ada.Calendar.Time (T);
+      Result : Unbounded_String := To_Unbounded_String (Prefix);
+
+      Year : Year_Number;
+      Month : Month_Number;
+      Day : Day_Number;
+      Sub_Sec : Duration;
+      Hour, Minute, Seconds : Integer;
+      TZ : Time_Offset;
+
+      function Pad (S : String; Length : Integer := 2) return String is
+         Res : constant String := "0000" &  S (S'First + 1 .. S'Last);
+      begin
+         return Res (Res'Last - Length + 1 .. Res'Last);
+      end Pad;
    begin
-      if All_Day then
-         return Prefix & ";TZID=" & Utils.Get_Timezone & ";VALUE=DATE:"
-           & GNAT.Calendar.Time_IO.Image (The_Time, "%Y%m%d");
+      if Local then
+         TZ := UTC_Time_Offset (T);
       else
-         return Prefix & ";TZID=" & Utils.Get_Timezone & ":"
-           & GNAT.Calendar.Time_IO.Image (The_Time, "%Y%m%dT%H%M%S");
+         TZ := 0;
       end if;
+      Ada.Calendar.Formatting.Split (Date     => T,
+                                     Year     => Year,
+                                     Month    => Month,
+                                     Day      => Day,
+                                     Hour     => Hour,
+                                     Minute   => Minute,
+                                     Second   => Seconds,
+                                     Sub_Second => Sub_Sec,
+                                     Time_Zone => TZ);
+      if Local then
+         Result := Result & ";TZID=" & Utils.Get_Timezone;
+      end if;
+      if All_Day then
+         Result := Result & ";VALUE=DATE";
+      end if;
+      Result := Result & ':';
+      Result := Result & Pad (Year'Img, 4) & Pad (Month'Img) & Pad (Day'Img);
+      if not All_Day then
+         Result := Result & 'T'
+            & Pad (Hour'Img)
+            & Pad (Minute'Img)
+            & Pad (Seconds'Img);
+         if not Local then
+            Result := Result & 'Z';
+         end if;
+      end if;
+      return To_String (Result);
    end To_String;
 
    function To_String (I : Interval) return String is
@@ -335,16 +363,18 @@ package body Events is
             then
                Write (To_String ("EXDATE",
                       Deleted_Event.Recurrence_ID,
-                      The_Event.Is_All_Day));
+                      All_Day => The_Event.Is_All_Day,
+                      Local => False));
             end if;
          end Do_Deletion;
 
       begin
          List.Iterate (Do_Deletion'Access);
-         if (The_Event.The_Type = Excepted) then
+         if The_Event.The_Type = Excepted then
             Write (To_String ("RECURRENCE-ID",
                               The_Event.Recurrence_ID,
-                              The_Event.Is_All_Day));
+                              All_Day => The_Event.Is_All_Day,
+                              Local => False));
             List.Iterate (Count_Exceptions'Access);
          end if;
 
@@ -352,7 +382,6 @@ package body Events is
       end Write_Exceptions;
 
       procedure Write_One (Position : Lists.Cursor) is
-         use GNAT.Calendar.Time_IO;
          Item : constant Event := Lists.Element (Position);
       begin
          if Item.The_Type = Deleted then
@@ -360,27 +389,33 @@ package body Events is
          end if;
          Write ("BEGIN:VEVENT");
          Write ("SUMMARY:" & Item.Summary);
-         Write (To_String ("DTSTAMP", Item.Created, False));
+         Write (To_String ("DTSTAMP", Item.Created, False, False));
          Write ("DESCRIPTION:" & Item.Description);
          Write ("LOCATION:" & Item.Location);
          Write ("CATEGORIES:" & Item.Category);
          Write ("UID:" & Item.UID);
          Write ("STATUS:CONFIRMED");
-         Write (To_String ("LAST-MODIFIED", Item.Last_Modified, False));
-         Write (To_String ("DTSTART", UTC_To_Local (Item.Event_Date),
-                       Item.Is_All_Day));
+         Write (To_String ("LAST-MODIFIED", Item.Last_Modified, False, False));
+         Write (To_String ("DTSTART", Item.Event_Date,
+                       Item.Is_All_Day,
+                       True));
          Write (To_String ("DTEND",
-                UTC_To_Local (Item.Event_Date + Item.Event_Duration),
-                       Item.Is_All_Day));
+                Item.Event_Date + Item.Event_Duration,
+                       Item.Is_All_Day,
+                       True));
          Write_Recurrence (Item);
          Write_Exceptions (Item);
          Write ("END:VEVENT");
+      exception
+         when E : others =>
+            Warn ("error while writing item: " & To_String (Item.UID)
+                     & " " & Exception_Message (E));
+            Write ("END:VEVENT");
       end Write_One;
 
       procedure Write_Recurrence (The_Event : Event) is
          use Ada.Strings.Fixed;
          use Input_Sources.Strings;
-         use GNAT.Calendar.Time_IO;
 
          S          : constant String := To_String (The_Event.Recurrence_Data);
          The_Days   : Week;
@@ -411,7 +446,8 @@ package body Events is
                    & ";BYDAY=" & To_String (The_Days)
                    & ";UNTIL=" & To_String ("",
                                             The_Event.End_Date,
-                                            False) (2 .. 17));
+                                            All_Day => False,
+                                            Local => False) (2 .. 17));
          else
             declare
                Reader           : DOM.Readers.Tree_Reader;
@@ -433,7 +469,7 @@ package body Events is
                XML_Doc := Reader.Get_Tree;
                Base_Nodes := DOM.Core.Documents.Get_Elements_By_Tag_Name (
                                XML_Doc, "recurrence");
-               if (Length (Base_Nodes) > 1) then
+               if Length (Base_Nodes) > 1 then
                   Warn ("Found more than 1 recurrence node in item, "
                      & "using only the first one");
                   Warn (S);
@@ -518,7 +554,8 @@ package body Events is
                    & ";BYDAY=" & To_String (The_Days)
                    & ";UNTIL=" & To_String ("",
                                             The_Event.End_Date,
-                                            False) (2 .. 17));
+                                            All_Day => False,
+                                            Local => False) (2 .. 17));
          end if;
       end Write_Recurrence;
 

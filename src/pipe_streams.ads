@@ -3,6 +3,7 @@ with Unicode;
 
 with POSIX.IO; use POSIX.IO;
 with POSIX.Process_Identification;
+with POSIX.Process_Environment;
 with POSIX; use POSIX;
 
 package Pipe_Streams is
@@ -23,7 +24,8 @@ package Pipe_Streams is
 
    procedure Execute (P : in out Pipe_Stream;
                       Command : String;
-                      Arguments : POSIX_String_List);
+                      Arguments : POSIX_String_List;
+                      Env : Process_Environment.Environment);
 private
    type Pipe_Stream is new Input_Source with record
       Pipe        : File_Descriptor;

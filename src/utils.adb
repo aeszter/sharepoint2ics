@@ -90,13 +90,6 @@ package body Utils is
       return Result (1 .. R - 1);
    end Unescape;
 
-   function UTC_To_Local (T : Ada.Calendar.Time) return Local_Time is
-      use Ada.Calendar;
-   begin
-      return Local_Time (T
-                    + 60 * Duration (Time_Zones.UTC_Time_Offset (T)));
-   end UTC_To_Local;
-
    procedure Warn (Text : String) is
       use Ada.Text_IO;
    begin

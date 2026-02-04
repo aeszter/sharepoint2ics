@@ -5,3 +5,12 @@ response.xml
 test.ics
 call_wget.sh
 config
+/obj/
+/bin/
+/alire/
+/config/
+build/
+seminar-loc.xml
+.vagrant/
+.clangd/
+.clang-format
